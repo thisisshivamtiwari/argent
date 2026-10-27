@@ -26,6 +26,7 @@ import {
   type RoundAbandonedStats,
   type CliSessionStartedStats,
 } from "./utils/variant-proposals";
+import { cleanupAbandonedFrames } from "./tools/screen-recording/frame-directory";
 import { shutdownOwnedDevices } from "./utils/device-shutdown";
 
 const PROCESS_TIMEOUT_MS = 5_000;
@@ -79,6 +80,9 @@ function initializeStdioTimestampWrapper(): void {
 
 export function start(): void {
   initializeStdioTimestampWrapper();
+  void cleanupAbandonedFrames().catch((err: unknown) => {
+    process.stderr.write(`[screen-recording] Abandoned JPEG cleanup failed: ${String(err)}\n`);
+  });
 
   // Exit on uncaught errors (state may be corrupted), but clean up first so
   // child processes are not orphaned.
