@@ -984,6 +984,11 @@ export function createHttpApp(registry: Registry, options?: HttpAppOptions): Htt
       const writeLine = (payload: unknown): void => {
         res.write(`${JSON.stringify(payload)}\n`);
       };
+      const streamKeepAlive = wantsStream ? setInterval(() => res.write("\n"), 15_000) : null;
+      if (streamKeepAlive) {
+        streamKeepAlive.unref?.();
+        res.once("close", () => clearInterval(streamKeepAlive));
+      }
       if (wantsStream) {
         // Every line must reach the client as soon as it is written.
         // `no-transform` asks intermediaries not to compress the stream, and
@@ -994,6 +999,7 @@ export function createHttpApp(registry: Registry, options?: HttpAppOptions): Htt
           "Cache-Control": "no-cache, no-transform",
           "X-Accel-Buffering": "no",
         });
+        res.flushHeaders();
       }
 
       try {
@@ -1150,6 +1156,7 @@ export function createHttpApp(registry: Registry, options?: HttpAppOptions): Htt
           .json({ error: attribute(formatErrorForAgent(err)), ...errorSignalFields(err) });
       } finally {
         if (keepAlive) clearInterval(keepAlive);
+        if (streamKeepAlive) clearInterval(streamKeepAlive);
         releaseInvocationMeta?.();
       }
     }
